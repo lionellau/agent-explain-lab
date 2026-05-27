@@ -2,15 +2,18 @@ import { useState } from 'react';
 import ChapterShell from '../components/ChapterShell';
 import StorySteps, { type Beat } from '../components/StorySteps';
 import { CHAPTERS } from '../chapters';
+import Scene3D from '../three/Scene3D';
+import { Brain, Beam, COLORS } from '../three/Prims';
 
 const C = CHAPTERS[11];
 
 const ROLES = [
-  { e: '🗺️', name: 'Planner',      role: 'splits the work',          bg: 'bg-grape/10', border: 'border-grape-soft/40', text: 'text-grape-soft' },
-  { e: '🔎', name: 'Researcher',   role: 'queries flights & hotels', bg: 'bg-sky/10',   border: 'border-sky/40',         text: 'text-sky' },
-  { e: '📚', name: 'Local Expert', role: 'reads city guides',         bg: 'bg-mint/10',  border: 'border-mint/40',        text: 'text-mint' },
-  { e: '✍️', name: 'Writer',       role: 'drafts the answer',         bg: 'bg-sun/10',   border: 'border-sun/40',         text: 'text-sun' },
-  { e: '🧐', name: 'Reviewer',     role: 'double-checks',             bg: 'bg-coral/10', border: 'border-coral/40',       text: 'text-coral' }
+  { name: 'Planner',      color: COLORS.agent  },
+  { name: 'Researcher',   color: COLORS.tool   },
+  { name: 'Local Expert', color: COLORS.rag    },
+  { name: 'Writer',       color: COLORS.warn   },
+  { name: 'Reviewer',     color: COLORS.bad    },
+  { name: 'Booker',       color: COLORS.memory }
 ];
 
 const BEATS: Beat[] = [
@@ -18,45 +21,51 @@ const BEATS: Beat[] = [
     llmNote: 'Each "agent" is the same LLM with a different system prompt and a narrower toolset.' },
   { caption: 'Planner cuts the work. Researcher fetches facts. Writer drafts. Reviewer checks.', readingMs: 3200,
     llmNote: 'Specialists can use better prompts for their narrow job — they usually beat one generalist.' },
-  { caption: 'But: every message between them is another call. Costs add up fast.', readingMs: 3200,
-    llmNote: 'A team of 6 agents talking freely sends many messages back and forth. The cost grows quickly.' },
+  { caption: 'But: every line between them is another LLM call. Costs add up fast.', readingMs: 3200,
+    llmNote: 'Six agents fully connected = 15 message channels. That\'s where the budget evaporates.' },
   { caption: '2–4 specialists ≈ sweet spot. More than that is usually bureaucracy.', readingMs: 3200,
     llmNote: 'Production systems put limits: max iterations, max messages, capped reply length.' }
 ];
 
+function TeamRing({ teamSize }: { teamSize: number }) {
+  const team = ROLES.slice(0, teamSize);
+  const radius = teamSize <= 1 ? 0 : 2.8;
+  const positions: [number, number, number][] = team.map((_, i) => {
+    const a = (i / team.length) * Math.PI * 2;
+    return [Math.cos(a) * radius, Math.sin(a * 0.5) * 0.3, Math.sin(a) * radius];
+  });
+
+  return (
+    <>
+      {team.map((r, i) => (
+        <Brain key={r.name} position={positions[i]} color={r.color} size={0.62} label={r.name} pulse spin={0.5 + i * 0.05} />
+      ))}
+      {/* Pairwise message channels — visualizes the n² growth */}
+      {positions.map((from, i) =>
+        positions.slice(i + 1).map((to, j) => (
+          <Beam key={`msg-${i}-${j}`} from={from} to={to} color={COLORS.agent} thick={1.0} dashed />
+        ))
+      )}
+    </>
+  );
+}
+
 export default function MultiAgent() {
   const [step, setStep] = useState(0);
   const teamSize = step <= 0 ? 1 : Math.min(step + 1, ROLES.length);
-  const team = ROLES.slice(0, teamSize);
-  const messages = teamSize * (teamSize - 1);
+  const messages = teamSize <= 1 ? 0 : (teamSize * (teamSize - 1)) / 2;
   return (
     <ChapterShell
       chapter={C}
       intro="When a job is big, you can split it across a small team of specialists. But teams cost messages — and messages cost money."
       demo={
-        <div className="min-h-[280px]">
-          <div className="flex flex-wrap justify-center gap-3 mb-4 min-h-[120px]">
-            {team.map((r) => (
-              <div key={r.name} className={`rounded-2xl border px-4 py-3 text-center anim-pop-in ${r.bg} ${r.border}`}>
-                <div className="text-3xl mb-1">{r.e}</div>
-                <div className={`text-sm font-semibold ${r.text}`}>{r.name}</div>
-                <div className="text-[11px] text-paper/60 mt-0.5">{r.role}</div>
-              </div>
-            ))}
-          </div>
-          {step >= 2 && (
-            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center text-sm anim-float-in">
-              <p className="text-paper/70">Messages exchanged this run: <span className="text-grape-soft font-bold">{messages}</span></p>
-              <p className="text-[11px] text-paper/40 mt-1">Each message = another LLM call.</p>
-            </div>
-          )}
-          {step >= 3 && teamSize <= 4 && (
-            <p className="mt-3 text-center text-mint text-sm anim-float-in">✓ Sweet spot — solid quality, manageable cost.</p>
-          )}
-          {step >= 3 && teamSize > 4 && (
-            <p className="mt-3 text-center text-coral text-sm anim-float-in">⚠ Too many specialists. Most of the cost is now agents talking to each other.</p>
-          )}
-        </div>
+        <Scene3D
+          height="460px"
+          camera={{ position: [0, 4, 9], fov: 55 }}
+          hint={`Rotate the room · message channels: ${messages}`}
+        >
+          <TeamRing teamSize={teamSize} />
+        </Scene3D>
       }
       story={
         <StorySteps
@@ -66,6 +75,13 @@ export default function MultiAgent() {
           accentBg={C.accentBg}
           onStep={setStep}
         />
+      }
+      extras={
+        <div className="rounded-xl bg-ink-soft/60 border border-white/10 p-3 text-sm text-center">
+          <p className="text-paper/70">Specialists active: <span className="text-grape-soft font-bold">{teamSize}</span>{' · '}Message channels: <span className="text-grape-soft font-bold">{messages}</span></p>
+          {teamSize <= 4 && step >= 3 && <p className="mt-1 text-mint text-[12px]">✓ Sweet spot — solid quality, manageable cost.</p>}
+          {teamSize > 4 && step >= 3 && <p className="mt-1 text-coral text-[12px]">⚠ Too many specialists. Most of the cost is now agents talking to each other.</p>}
+        </div>
       }
       outro="Next: not every job actually needs an agent. Some need just a function."
     />

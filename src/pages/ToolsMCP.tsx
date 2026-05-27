@@ -2,66 +2,125 @@ import { useState } from 'react';
 import ChapterShell from '../components/ChapterShell';
 import StorySteps, { type Beat } from '../components/StorySteps';
 import { CHAPTERS } from '../chapters';
+import Scene3D from '../three/Scene3D';
+import { Brain, ToolNode, Beam, COLORS } from '../three/Prims';
+import { Html } from '@react-three/drei';
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import type { Mesh } from 'three';
 
 const C = CHAPTERS[8];
 
-const TOOLS = ['Flights', 'Hotels', 'Calendar', 'Weather', 'Email', 'Maps'];
+const TOOLS = [
+  { label: 'Flights',  angle: 0   },
+  { label: 'Hotels',   angle: 60  },
+  { label: 'Calendar', angle: 120 },
+  { label: 'Weather',  angle: 180 },
+  { label: 'Email',    angle: 240 },
+  { label: 'Maps',     angle: 300 }
+];
 
 const BEATS: Beat[] = [
   { caption: 'For the agent to actually do things, it has to plug into the outside world.', readingMs: 3200,
     llmNote: 'A "tool" is anything with an input and an output: an API, a database, a script.' },
   { caption: 'Without a standard, every tool needs its own custom cable.', readingMs: 3200,
-    llmNote: 'Each API speaks a slightly different language. Wiring them up by hand is slow and brittle.' },
+    llmNote: 'Look at the spaghetti: 6 tools = 6 hand-built integrations. Each one breaks differently.' },
   { caption: 'MCP is one neat adapter that fits them all.', readingMs: 3200,
-    llmNote: 'MCP (Model Context Protocol) is like USB for AI tools — a shared shape so any agent can talk to any MCP-compatible service.' },
-  { caption: 'Real life: things break. Tools time out. Inputs are wrong. The agent has to handle it.', readingMs: 3400,
-    llmNote: 'For high-stakes tools (payments, sends) the system asks for human approval before letting the agent press the button.' }
+    llmNote: 'One golden hub in the middle, six clean lines out. New tool? It just plugs into the hub.' },
+  { caption: 'Real life: things break. Tools time out. The agent has to handle it.', readingMs: 3400,
+    llmNote: 'For high-stakes tools (payments, sends) the system pauses and asks for human approval first.' }
 ];
+
+function McpHub({ position }: { position: [number, number, number] }) {
+  const ref = useRef<Mesh>(null);
+  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += dt * 0.6; });
+  return (
+    <group position={position}>
+      <mesh ref={ref}>
+        <torusGeometry args={[0.7, 0.18, 16, 48]} />
+        <meshStandardMaterial color={COLORS.hub} emissive={COLORS.hub} emissiveIntensity={0.7} roughness={0.3} metalness={0.6} />
+      </mesh>
+      <Html position={[0, 1.0, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
+        <div style={{ color: COLORS.hub, fontSize: 11, fontWeight: 700, textShadow: '0 0 6px #0f0f1e', whiteSpace: 'nowrap' }}>
+          🔌 MCP adapter
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+function MCPScene({ step }: { step: number }) {
+  const agentPos: [number, number, number] = [0, 2.8, 0];
+  const hubPos:   [number, number, number] = [0, 0, 0];
+  const radius = 3.6;
+  const tools = TOOLS.map((t) => {
+    const rad = (t.angle * Math.PI) / 180;
+    const pos: [number, number, number] = [Math.cos(rad) * radius, -1.6, Math.sin(rad) * radius];
+    return { ...t, pos };
+  });
+  const useMCP = step >= 2;
+  const failedIdx = step >= 3 ? 4 : -1; // Email tool fails when step >= 3
+
+  return (
+    <>
+      <Brain position={agentPos} color={COLORS.agent} size={0.9} label="Agent" />
+      {useMCP && <McpHub position={hubPos} />}
+
+      {tools.map((t, i) => (
+        <ToolNode
+          key={t.label}
+          position={t.pos}
+          color={i === failedIdx ? COLORS.bad : COLORS.tool}
+          label={t.label}
+          active={!useMCP || (useMCP && step >= 2 && i !== failedIdx)}
+        />
+      ))}
+
+      {/* Beams */}
+      {tools.map((t, i) => {
+        if (!useMCP) {
+          // Direct messy wires from agent to each tool
+          return <Beam key={'d-' + t.label} from={agentPos} to={t.pos} color={i === failedIdx ? COLORS.bad : COLORS.tool} thick={1.2} dashed />;
+        }
+        // Two-segment: agent → hub → tool
+        return (
+          <group key={'mcp-' + t.label}>
+            <Beam from={agentPos} to={hubPos} color={COLORS.hub} thick={1.8} />
+            <Beam from={hubPos} to={t.pos} color={i === failedIdx ? COLORS.bad : COLORS.tool} thick={1.4} />
+          </group>
+        );
+      })}
+
+      {/* Failure callout */}
+      {step >= 3 && (
+        <Html position={tools[failedIdx].pos} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
+          <div style={{
+            background: 'rgba(15,22,35,0.92)', border: `1px solid ${COLORS.bad}`, borderRadius: 10,
+            padding: '8px 10px', color: '#fdf6f0', fontSize: 10, lineHeight: 1.3, width: 180, marginTop: 28
+          }}>
+            <div style={{ color: COLORS.bad, fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>⚠ Failure</div>
+            email.send needs human approval.
+          </div>
+        </Html>
+      )}
+    </>
+  );
+}
 
 export default function ToolsMCP() {
   const [step, setStep] = useState(0);
-  const mcp = step >= 2;
-
   return (
     <ChapterShell
       chapter={C}
       intro="A chatbot can only talk. An agent acts — but only because somebody wired tools into it. Watch what changes when there's a standard plug."
       demo={
-        <div className="relative min-h-[300px] flex flex-col items-center justify-center">
-          {/* Agent */}
-          <div className="rounded-2xl bg-grape/15 border border-grape-soft/40 px-5 py-3 text-grape-soft font-semibold mb-6">
-            🤖 Agent
-          </div>
-          {/* MCP hub */}
-          {mcp && (
-            <div className="rounded-full bg-sun/20 border border-sun/50 px-4 py-2 text-sun font-semibold mb-6 anim-pop-in">
-              🔌 MCP adapter
-            </div>
-          )}
-          {/* Tools */}
-          <div className={`grid grid-cols-3 md:grid-cols-6 gap-3 w-full`}>
-            {TOOLS.map((t) => (
-              <div key={t} className="relative rounded-xl bg-sky/10 border border-sky/30 px-3 py-3 text-center text-sky text-sm">
-                {/* connecting line */}
-                <div
-                  className="absolute left-1/2 -top-6 w-px bg-paper/20"
-                  style={{ height: mcp ? '24px' : '60px', transition: 'all 600ms' }}
-                />
-                {t}
-              </div>
-            ))}
-          </div>
-          {step >= 3 && (
-            <div className="mt-6 rounded-xl bg-coral/10 border border-coral/30 p-3 text-sm anim-float-in w-full max-w-2xl">
-              <p className="text-coral text-[11px] uppercase tracking-widest mb-1">⚠️ Real failures</p>
-              <ul className="space-y-1 text-paper/85 text-[13px]">
-                <li>• Wrong parameter ⇒ tool returns "did you mean…", agent retries.</li>
-                <li>• Timeout ⇒ wait a moment, retry once, then ask the user.</li>
-                <li>• Permission denied / payment ⇒ stop and ask a human.</li>
-              </ul>
-            </div>
-          )}
-        </div>
+        <Scene3D
+          height="480px"
+          camera={{ position: [0, 4, 11], fov: 50 }}
+          hint="Rotate the room · count the cables before vs after"
+        >
+          <MCPScene step={step} />
+        </Scene3D>
       }
       story={
         <StorySteps
