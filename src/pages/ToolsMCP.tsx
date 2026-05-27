@@ -1,126 +1,148 @@
 import { useState } from 'react';
 import ChapterShell from '../components/ChapterShell';
 import StorySteps, { type Beat } from '../components/StorySteps';
+import { FlowDiagram, FlowNode, FlowArrow, FLOW_COLORS } from '../components/Flow';
 import { CHAPTERS } from '../chapters';
-import Scene3D from '../three/Scene3D';
-import { Brain, ToolNode, Beam, COLORS } from '../three/Prims';
-import { Html } from '@react-three/drei';
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { Mesh } from 'three';
 
 const C = CHAPTERS[8];
 
-const TOOLS = [
-  { label: 'Flights',  angle: 0   },
-  { label: 'Hotels',   angle: 60  },
-  { label: 'Calendar', angle: 120 },
-  { label: 'Weather',  angle: 180 },
-  { label: 'Email',    angle: 240 },
-  { label: 'Maps',     angle: 300 }
-];
-
 const BEATS: Beat[] = [
-  { caption: 'For the agent to actually do things, it has to plug into the outside world.', readingMs: 3200,
-    llmNote: 'A "tool" is anything with an input and an output: an API, a database, a script.' },
+  { caption: 'For an agent to do things in the real world, it has to plug into tools.', readingMs: 3000,
+    llmNote: 'A "tool" is any API or function the agent can call: flights, hotels, calendar, email.' },
   { caption: 'Without a standard, every tool needs its own custom cable.', readingMs: 3200,
-    llmNote: 'Look at the spaghetti: 6 tools = 6 hand-built integrations. Each one breaks differently.' },
-  { caption: 'MCP is one neat adapter that fits them all.', readingMs: 3200,
-    llmNote: 'One golden hub in the middle, six clean lines out. New tool? It just plugs into the hub.' },
-  { caption: 'Real life: things break. Tools time out. The agent has to handle it.', readingMs: 3400,
-    llmNote: 'For high-stakes tools (payments, sends) the system pauses and asks for human approval first.' }
+    llmNote: 'Six tools = six hand-written integrations. Each speaks a slightly different language.' },
+  { caption: 'MCP is one universal plug that fits them all.', readingMs: 3200,
+    llmNote: 'MCP (Model Context Protocol) is "USB for AI tools" — one shared shape any tool can implement.' },
+  { caption: 'Real life: things break. Bad parameters, timeouts, permissions.', readingMs: 3200,
+    llmNote: 'For risky tools (payments, email send) the orchestrator stops and asks a human first.' }
 ];
 
-function McpHub({ position }: { position: [number, number, number] }) {
-  const ref = useRef<Mesh>(null);
-  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += dt * 0.6; });
-  return (
-    <group position={position}>
-      <mesh ref={ref}>
-        <torusGeometry args={[0.7, 0.18, 16, 48]} />
-        <meshStandardMaterial color={COLORS.hub} emissive={COLORS.hub} emissiveIntensity={0.7} roughness={0.3} metalness={0.6} />
-      </mesh>
-      <Html position={[0, 1.0, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
-        <div style={{ color: COLORS.hub, fontSize: 11, fontWeight: 700, textShadow: '0 0 6px #0f0f1e', whiteSpace: 'nowrap' }}>
-          🔌 MCP adapter
-        </div>
-      </Html>
-    </group>
-  );
-}
+const W = 1000;
+const H = 380;
 
-function MCPScene({ step }: { step: number }) {
-  const agentPos: [number, number, number] = [0, 2.8, 0];
-  const hubPos:   [number, number, number] = [0, 0, 0];
-  const radius = 3.6;
-  const tools = TOOLS.map((t) => {
-    const rad = (t.angle * Math.PI) / 180;
-    const pos: [number, number, number] = [Math.cos(rad) * radius, -1.6, Math.sin(rad) * radius];
-    return { ...t, pos };
-  });
-  const useMCP = step >= 2;
-  const failedIdx = step >= 3 ? 4 : -1; // Email tool fails when step >= 3
+const TOOLS = [
+  { id: 'flights',  label: '✈ Flights' },
+  { id: 'hotels',   label: '🏨 Hotels' },
+  { id: 'calendar', label: '📅 Calendar' },
+  { id: 'weather',  label: '☁ Weather' },
+  { id: 'email',    label: '📧 Email' },
+  { id: 'maps',     label: '🗺 Maps' }
+];
 
-  return (
-    <>
-      <Brain position={agentPos} color={COLORS.agent} size={0.9} label="Agent" />
-      {useMCP && <McpHub position={hubPos} />}
+// Left panel: messy direct wiring. Right panel: clean MCP-hub wiring.
+// Each panel uses half the width.
+const LEFT_AGENT  = { x: 230, y: 60 };
+const RIGHT_AGENT = { x: 730, y: 60 };
+const RIGHT_HUB   = { x: 730, y: 180 };
 
-      {tools.map((t, i) => (
-        <ToolNode
-          key={t.label}
-          position={t.pos}
-          color={i === failedIdx ? COLORS.bad : COLORS.tool}
-          label={t.label}
-          active={!useMCP || (useMCP && step >= 2 && i !== failedIdx)}
-        />
-      ))}
+// 6 tools spread across each half. Each half is ~ x[0..450] (left) and x[510..960] (right).
+// 6 columns × 75px gap = 375px range, centered.
+const leftToolPos  = (i: number) => ({ x:  50 + i * 78,  y: 320 });
+const rightToolPos = (i: number) => ({ x: 555 + i * 78,  y: 320 });
 
-      {/* Beams */}
-      {tools.map((t, i) => {
-        if (!useMCP) {
-          // Direct messy wires from agent to each tool
-          return <Beam key={'d-' + t.label} from={agentPos} to={t.pos} color={i === failedIdx ? COLORS.bad : COLORS.tool} thick={1.2} dashed />;
-        }
-        // Two-segment: agent → hub → tool
-        return (
-          <group key={'mcp-' + t.label}>
-            <Beam from={agentPos} to={hubPos} color={COLORS.hub} thick={1.8} />
-            <Beam from={hubPos} to={t.pos} color={i === failedIdx ? COLORS.bad : COLORS.tool} thick={1.4} />
-          </group>
-        );
-      })}
-
-      {/* Failure callout */}
-      {step >= 3 && (
-        <Html position={tools[failedIdx].pos} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
-          <div style={{
-            background: 'rgba(15,22,35,0.92)', border: `1px solid ${COLORS.bad}`, borderRadius: 10,
-            padding: '8px 10px', color: '#fdf6f0', fontSize: 10, lineHeight: 1.3, width: 180, marginTop: 28
-          }}>
-            <div style={{ color: COLORS.bad, fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: 1 }}>⚠ Failure</div>
-            email.send needs human approval.
-          </div>
-        </Html>
-      )}
-    </>
-  );
+function nodeStyle(p: { x: number; y: number }, w: number, h: number) {
+  return {
+    position: 'absolute' as const,
+    left: `calc(${(p.x / W) * 100}% - ${w / 2}px)`,
+    top:  `calc(${(p.y / H) * 100}% - ${h / 2}px)`,
+    width: w
+  };
 }
 
 export default function ToolsMCP() {
   const [step, setStep] = useState(0);
+  const showLeft  = step >= 1;
+  const showRight = step >= 2;
+  const failIdx   = step >= 3 ? 4 : -1; // Email tool flagged
+
   return (
     <ChapterShell
       chapter={C}
-      intro="A chatbot can only talk. An agent acts — but only because somebody wired tools into it. Watch what changes when there's a standard plug."
+      intro="A chatbot can only talk. An agent acts — because somebody wired tools into it. Watch what changes when there's a standard plug."
       demo={
-        <Scene3D
-          height="480px"
-          camera={{ position: [0, 4, 11], fov: 50 }}
-          hint="Rotate the room · count the cables before vs after"
-        >
-          <MCPScene step={step} />
-        </Scene3D>
+        <FlowDiagram
+          height={H}
+          width={W}
+          arrows={
+            <>
+              {/* Vertical separator */}
+              <line x1="500" y1="20" x2="500" y2={H - 20} stroke="#ffffff15" strokeDasharray="4 6" />
+
+              {/* LEFT: direct messy wires — every tool has its own cable, with arcs that overlap */}
+              {showLeft && TOOLS.map((_, i) => (
+                <FlowArrow
+                  key={'L-' + i}
+                  from={LEFT_AGENT}
+                  to={leftToolPos(i)}
+                  color={FLOW_COLORS.tool}
+                  curve={(i - 2.5) * 0.05}
+                  active
+                  thickness={1.5}
+                  dashed
+                />
+              ))}
+
+              {/* RIGHT: agent → hub → each tool */}
+              {showRight && (
+                <FlowArrow from={RIGHT_AGENT} to={RIGHT_HUB} color={FLOW_COLORS.warn} active thickness={2.5} />
+              )}
+              {showRight && TOOLS.map((_, i) => {
+                const isFail = failIdx === i;
+                return (
+                  <FlowArrow
+                    key={'R-' + i}
+                    from={RIGHT_HUB}
+                    to={rightToolPos(i)}
+                    color={isFail ? FLOW_COLORS.bad : FLOW_COLORS.tool}
+                    curve={(i - 2.5) * 0.02}
+                    active
+                    thickness={1.8}
+                  />
+                );
+              })}
+            </>
+          }
+          nodes={
+            <>
+              {/* Panel labels */}
+              <div className="absolute left-4 top-1 text-[10px] uppercase tracking-widest text-paper/40 font-semibold">Before · spaghetti wiring</div>
+              <div className="absolute right-4 top-1 text-[10px] uppercase tracking-widest text-paper/40 font-semibold text-right">After · one MCP adapter</div>
+
+              {/* LEFT side */}
+              <div style={nodeStyle(LEFT_AGENT, 110, 50)}>
+                <FlowNode tone="agent" emoji="🤖" title="Agent" size="sm" dim={!showLeft} />
+              </div>
+              {TOOLS.map((t, i) => (
+                <div key={'lt-' + t.id} style={nodeStyle(leftToolPos(i), 68, 32)}>
+                  <FlowNode tone="tool" title={t.label} size="sm" dim={!showLeft} />
+                </div>
+              ))}
+
+              {/* RIGHT side */}
+              <div style={nodeStyle(RIGHT_AGENT, 110, 50)}>
+                <FlowNode tone="agent" emoji="🤖" title="Agent" size="sm" dim={!showRight} />
+              </div>
+              <div style={nodeStyle(RIGHT_HUB, 140, 50)}>
+                <FlowNode tone="warn" emoji="🔌" title="MCP adapter" sub="one shared protocol" size="sm" dim={!showRight} active={showRight && step < 3} />
+              </div>
+              {TOOLS.map((t, i) => {
+                const isFail = failIdx === i;
+                return (
+                  <div key={'rt-' + t.id} style={nodeStyle(rightToolPos(i), 68, 32)}>
+                    <FlowNode tone={isFail ? 'bad' : 'tool'} title={isFail ? '⚠ Email' : t.label} size="sm" dim={!showRight} active={isFail} />
+                  </div>
+                );
+              })}
+
+              {step >= 3 && (
+                <div className="absolute right-2 bottom-2 max-w-[280px] rounded-lg bg-coral/15 border border-coral/40 px-3 py-2 anim-float-in">
+                  <div className="text-[10px] uppercase tracking-widest font-bold text-coral mb-0.5">⚠ Real failure</div>
+                  <div className="text-paper/80 text-xs leading-snug">email.send needs human approval — agent pauses and asks.</div>
+                </div>
+              )}
+            </>
+          }
+        />
       }
       story={
         <StorySteps
@@ -131,7 +153,7 @@ export default function ToolsMCP() {
           onStep={setStep}
         />
       }
-      outro="Next: even with all the right info, the agent's first draft might be wrong. How does it check itself?"
+      outro="Next: even with all the right info, the agent's first draft might break a rule. How does it check itself?"
     />
   );
 }

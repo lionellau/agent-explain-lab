@@ -1,91 +1,63 @@
 import { useState } from 'react';
 import ChapterShell from '../components/ChapterShell';
 import StorySteps, { type Beat } from '../components/StorySteps';
+import { FlowDiagram, FlowNode, FlowArrow, FLOW_COLORS } from '../components/Flow';
 import { CHAPTERS, STORY } from '../chapters';
-import Scene3D from '../three/Scene3D';
-import { Brain, Orb, Beam, COLORS } from '../three/Prims';
-import { Html } from '@react-three/drei';
 
 const C = CHAPTERS[14];
 
-const PIPELINE = [
-  { name: 'Plan',     color: COLORS.agent,  pos: [-4.5, 1.5, 0] },
-  { name: 'Memory',   color: COLORS.memory, pos: [-2.5, 2.0, 1.2] },
-  { name: 'RAG',      color: COLORS.rag,    pos: [-0.5, 1.5, -1.2] },
-  { name: 'Tools',    color: COLORS.tool,   pos: [1.5,  1.0, 1.0] },
-  { name: 'Loop',     color: COLORS.warn,   pos: [3.0,  0.0, -0.6] },
-  { name: 'Reflect',  color: COLORS.bad,    pos: [4.0, -1.2, 0.8] },
-  { name: 'Write',    color: COLORS.good,   pos: [5.5, -2.0, 0] }
-] as const;
+type Tone = 'agent' | 'memory' | 'rag' | 'tool' | 'warn' | 'bad' | 'good';
+const STAGES: { name: string; emoji: string; tone: Tone; note: string }[] = [
+  { name: 'Plan',    emoji: '🗺',  tone: 'agent',  note: '7 small tasks' },
+  { name: 'Memory',  emoji: '🧠',  tone: 'memory', note: 'window seat · veg' },
+  { name: 'RAG',     emoji: '📚',  tone: 'rag',    note: 'refund policy §4' },
+  { name: 'Tools',   emoji: '🔌',  tone: 'tool',   note: 'flights · hotels' },
+  { name: 'Loop',    emoji: '🔁',  tone: 'warn',   note: '2 think-act passes' },
+  { name: 'Reflect', emoji: '🪞',  tone: 'bad',    note: 'fixed $35 overshoot' },
+  { name: 'Write',   emoji: '✍',  tone: 'good',   note: 'final plan' }
+];
 
 const BEATS: Beat[] = [
   { caption: `Sam: "${STORY.ask}"`, readingMs: 3000,
-    llmNote: 'Same request from the very first chapter. Watch every piece work together.' },
-  { caption: 'The planner makes a list of 7 small tasks.', readingMs: 2800 },
-  { caption: 'Memory recalls Sam\'s preferences from past trips.', readingMs: 2800 },
-  { caption: 'RAG pulls the right paragraph from the insurance policy.', readingMs: 2800 },
-  { caption: 'Tools fetch real prices: flights, hotels, weather.', readingMs: 2800 },
-  { caption: 'The think-act loop refines the choices over two passes.', readingMs: 2800 },
-  { caption: 'A critic catches a $35 overshoot and fixes it.', readingMs: 2800 },
+    llmNote: 'Same question as Chapter 1. This time, watch every piece work together.' },
+  { caption: 'The planner makes a list of 7 small tasks.', readingMs: 2600 },
+  { caption: 'Memory recalls Sam\'s preferences from past trips.', readingMs: 2600 },
+  { caption: 'RAG pulls the right paragraph from the insurance policy.', readingMs: 2600 },
+  { caption: 'Tools fetch real prices: flights, hotels, weather.', readingMs: 2600 },
+  { caption: 'The think-act loop refines the choices over two passes.', readingMs: 2600 },
+  { caption: 'A critic catches a $35 overshoot and fixes it.', readingMs: 2600 },
   { caption: 'A grounded plan comes out the other side. That\'s the whole machine.', readingMs: 3400,
-    llmNote: 'You now have a complete mental model of an agent.' }
+    llmNote: 'You now have a complete mental model: LLM + memory + retrieval + tools + critic, controlled by a loop.' }
 ];
 
-function CapstoneScene({ step }: { step: number }) {
-  const requestPos: [number, number, number] = [-6.5, 2.5, 0];
+const W = 1000;
+const H = 200;
+const PADX = 60;
+const STAGE_Y = H / 2;
 
-  return (
-    <>
-      {step >= 0 && <Orb position={requestPos} color={COLORS.user} label="Sam's request" />}
+function stagePos(i: number) {
+  const span = W - PADX * 2;
+  const x = PADX + (i / (STAGES.length - 1)) * span;
+  return { x, y: STAGE_Y };
+}
 
-      {PIPELINE.map((p, i) => {
-        const active = step >= i + 1;
-        return (
-          <Brain
-            key={p.name}
-            position={p.pos as [number, number, number]}
-            color={p.color}
-            size={active ? 0.55 : 0.4}
-            label={active ? p.name : ''}
-            dim={!active}
-            spin={0.4 + i * 0.05}
-          />
-        );
-      })}
+const COLOR_BY_TONE: Record<Tone, string> = {
+  agent:  FLOW_COLORS.agent,
+  memory: FLOW_COLORS.memory,
+  rag:    FLOW_COLORS.rag,
+  tool:   FLOW_COLORS.tool,
+  warn:   FLOW_COLORS.warn,
+  bad:    FLOW_COLORS.bad,
+  good:   FLOW_COLORS.good
+};
 
-      {/* Chain beams */}
-      {step >= 1 && (
-        <Beam from={requestPos} to={PIPELINE[0].pos as [number, number, number]} color={COLORS.user} />
-      )}
-      {PIPELINE.slice(0, -1).map((p, i) => {
-        if (step < i + 2) return null;
-        return (
-          <Beam
-            key={`b-${i}`}
-            from={p.pos as [number, number, number]}
-            to={PIPELINE[i + 1].pos as [number, number, number]}
-            color={PIPELINE[i + 1].color}
-          />
-        );
-      })}
-
-      {step >= PIPELINE.length + 1 && (
-        <Html position={[5.5, -3.5, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
-          <div style={{
-            background: 'rgba(15,22,35,0.92)', border: `1px solid ${COLORS.good}`, borderRadius: 12,
-            padding: '10px 14px', color: '#fdf6f0', fontSize: 11, lineHeight: 1.5, width: 280
-          }}>
-            <div style={{ color: COLORS.good, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Final plan</div>
-            ✈️ Iberia JFK→LIS — $295<br />
-            🏨 Hostel Alfama ×3 — $114<br />
-            🚋 Tram 28 + Belém — $24<br />
-            🥗 Veg lunches + café crawl — $34<br />
-            <span style={{ color: COLORS.good, fontWeight: 700 }}>Total: $467 ✓ under $500</span>
-          </div>
-        </Html>
-      )}
-    </>
-  );
+function nodeStyle(p: { x: number; y: number }, w: number, h: number) {
+  return {
+    position: 'absolute' as const,
+    left: `calc(${(p.x / W) * 100}% - ${w / 2}px)`,
+    top:  `calc(${(p.y / H) * 100}% - ${h / 2}px)`,
+    width: w
+  };
 }
 
 export default function Capstone() {
@@ -93,15 +65,50 @@ export default function Capstone() {
   return (
     <ChapterShell
       chapter={C}
-      intro="Every piece of the lab in one continuous run. Watch the stages light up as the story moves through them."
+      intro="Every piece of the lab, end-to-end. Watch the stages light up as the story moves through them."
       demo={
-        <Scene3D
-          height="500px"
-          camera={{ position: [0, 2, 12], fov: 55 }}
-          hint="Spin the pipeline · stages light up step by step"
-        >
-          <CapstoneScene step={step} />
-        </Scene3D>
+        <>
+          <div className="flex items-center gap-2 mb-4 text-sm">
+            <span className="px-2 py-1 rounded-md bg-sun/20 text-sun font-mono text-xs shrink-0">Sam</span>
+            <span className="text-paper/80 italic truncate">"{STORY.ask}"</span>
+          </div>
+          <FlowDiagram
+            height={H}
+            width={W}
+            arrows={
+              <>
+                {STAGES.slice(0, -1).map((s, i) => (
+                  <FlowArrow
+                    key={'pipe-' + i}
+                    from={stagePos(i)}
+                    to={stagePos(i + 1)}
+                    color={COLOR_BY_TONE[STAGES[i + 1].tone]}
+                    active={step >= i + 2}
+                    curve={0}
+                    thickness={2}
+                  />
+                ))}
+              </>
+            }
+            nodes={
+              <>
+                {STAGES.map((s, i) => (
+                  <div key={s.name} style={nodeStyle(stagePos(i), 110, 70)}>
+                    <FlowNode
+                      tone={s.tone}
+                      emoji={s.emoji}
+                      title={s.name}
+                      sub={step >= i + 1 ? s.note : ''}
+                      size="sm"
+                      dim={step < i + 1}
+                      active={step === i + 1}
+                    />
+                  </div>
+                ))}
+              </>
+            }
+          />
+        </>
       }
       story={
         <StorySteps
@@ -111,6 +118,21 @@ export default function Capstone() {
           accentBg={C.accentBg}
           onStep={setStep}
         />
+      }
+      extras={
+        step >= STAGES.length + 1 ? (
+          <div className="rounded-2xl bg-mint/10 border border-mint/40 p-5 anim-float-in">
+            <div className="text-mint text-[11px] uppercase tracking-widest mb-2">Final plan</div>
+            <ul className="text-sm space-y-1 text-paper">
+              <li>✈️ Fri 9pm Iberia JFK→LIS — <b>$295</b> (window seat ✓)</li>
+              <li>🏨 Hostel Alfama, 3 nights — <b>$114</b> (vegetarian breakfast ✓)</li>
+              <li>🚋 Tram 28 + Belém day pass — <b>$24</b></li>
+              <li>🥗 Veg lunches + Bairro Alto café crawl — <b>$34</b></li>
+              <li className="mt-2 text-mint font-semibold">Total: $467 ✓ under $500</li>
+              <li className="text-[12px] text-paper/60 italic">If flight cancels: full refund (insurance §4.1 — pulled by RAG).</li>
+            </ul>
+          </div>
+        ) : null
       }
       outro="🎉 That's the tour. Bookmark this page, share it with someone curious, and go build something."
     />

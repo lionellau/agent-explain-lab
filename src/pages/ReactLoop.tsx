@@ -1,108 +1,115 @@
 import { useState } from 'react';
 import ChapterShell from '../components/ChapterShell';
 import StorySteps, { type Beat } from '../components/StorySteps';
+import { FlowDiagram, FlowNode, FlowArrow, FLOW_COLORS } from '../components/Flow';
 import { CHAPTERS } from '../chapters';
-import Scene3D from '../three/Scene3D';
-import { Brain, ToolNode, Beam, COLORS } from '../three/Prims';
-import { Html } from '@react-three/drei';
 
 const C = CHAPTERS[1];
 
 const BEATS: Beat[] = [
   { caption: 'The agent doesn\'t answer in one shot. It thinks → tries → looks.', readingMs: 3200,
-    llmNote: 'Each loop has three parts: a Thought (what to do next), an Action (use a tool), an Observation (what came back).' },
+    llmNote: 'Each cycle has three parts: a Thought (plan), an Action (use a tool), an Observation (what came back).' },
   { caption: 'Thought: "I should check real flight prices first."', readingMs: 3000,
-    llmNote: 'The model writes a short note explaining its plan, before acting.' },
-  { caption: 'Action: it calls the Flights tool with the right city and date.', readingMs: 3000,
-    llmNote: 'The model picks a tool and fills in the inputs. That goes off to a real API.' },
-  { caption: 'Observation: $295 on Iberia, 7h flight. Now we know.', readingMs: 3000,
-    llmNote: 'The tool\'s reply is handed back to the model so it can read the facts.' },
-  { caption: 'New thought: "Got the flight. Hotels next." And the loop starts again.', readingMs: 3400,
-    llmNote: 'The model keeps looping until it has enough to give a final answer.' }
+    llmNote: 'The model writes a short note out loud so its reasoning is auditable.' },
+  { caption: 'Action: it calls the Flights tool.', readingMs: 3000,
+    llmNote: 'The model fills in the inputs and the orchestrator routes the call to a real API.' },
+  { caption: 'Observation: Iberia $295. Now we know.', readingMs: 3000,
+    llmNote: 'The tool reply becomes a new message in the conversation. The next thought reads it.' },
+  { caption: 'New thought: "Got the flight. Hotels next." The cycle starts again.', readingMs: 3400,
+    llmNote: 'The model keeps cycling until its thought says "I have enough — write the answer."' }
 ];
+
+const W = 1000;
+const H = 380;
+
+// Three nodes in a triangle, with the agent brain in the middle.
+const C_THOUGHT = { x: 240, y: 100 };
+const C_ACTION  = { x: 760, y: 100 };
+const C_OBSERV  = { x: 500, y: 290 };
+const C_BRAIN   = { x: 500, y: 180 };
+
+function nodeStyle(p: { x: number; y: number }, w: number, h: number) {
+  return {
+    position: 'absolute' as const,
+    left: `calc(${(p.x / W) * 100}% - ${w / 2}px)`,
+    top:  `calc(${(p.y / H) * 100}% - ${h / 2}px)`,
+    width: w
+  };
+}
 
 const STEPS = [
-  { thought: '…',                                       action: '',                          obs: '',                              tool: '' },
-  { thought: 'I should check real flight prices first.', action: '',                          obs: '',                              tool: '' },
-  { thought: 'I should check real flight prices first.', action: 'flight_search(JFK→LIS, Fri)', obs: '',                              tool: 'flights' },
-  { thought: 'I should check real flight prices first.', action: 'flight_search(JFK→LIS, Fri)', obs: '3 flights. Cheapest: Iberia $295.', tool: 'flights' },
-  { thought: 'Got the flight. Hotels next.',            action: 'hotel_search(Lisbon, ≤$70)', obs: 'Hostel Alfama $38/night.',      tool: 'hotels' }
+  { thought: '…',                                       action: '',                          obs: '' },
+  { thought: '"I should check real flight prices first."', action: '',                          obs: '' },
+  { thought: '"I should check real flight prices first."', action: 'flight_search(JFK→LIS, Fri)', obs: '' },
+  { thought: '"I should check real flight prices first."', action: 'flight_search(JFK→LIS, Fri)', obs: 'Iberia · $295 · 7h' },
+  { thought: '"Got the flight. Hotels next."',            action: 'hotel_search(Lisbon, ≤$70)', obs: 'Hostel Alfama · $38/nt' }
 ];
-
-function ReactScene({ step }: { step: number }) {
-  const agentPos: [number, number, number] = [0, 1, 0];
-  const flights: [number, number, number] = [-3.5, -2.0, 0];
-  const hotels:  [number, number, number] = [ 0,   -3.0, 0];
-  const weather: [number, number, number] = [ 3.5, -2.0, 0];
-  const cur = STEPS[Math.min(step, STEPS.length - 1)];
-
-  const fired = cur.tool;
-  const obsBack = !!cur.obs;
-
-  return (
-    <>
-      <Brain position={agentPos} color={COLORS.agent} size={1.0} label="Agent" />
-      <ToolNode position={flights} color={COLORS.tool} label="Flights" active={fired === 'flights'} />
-      <ToolNode position={hotels}  color={COLORS.tool} label="Hotels"  active={fired === 'hotels'} />
-      <ToolNode position={weather} color={COLORS.rag}  label="Weather" active={false} />
-
-      {fired === 'flights' && <Beam from={agentPos} to={flights} color={COLORS.tool} />}
-      {fired === 'hotels'  && <Beam from={agentPos} to={hotels}  color={COLORS.tool} />}
-      {obsBack && fired === 'flights' && <Beam from={flights} to={agentPos} color={COLORS.rag} thick={1.6} />}
-      {obsBack && fired === 'hotels'  && <Beam from={hotels}  to={agentPos} color={COLORS.rag} thick={1.6} />}
-
-      {/* Thought card floating above the brain */}
-      <Html position={[0, 2.7, 0]} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
-        <div style={{
-          background: 'rgba(15,22,35,0.92)', border: `1px solid ${COLORS.warn}`, borderRadius: 10,
-          padding: '8px 12px', color: '#fdf6f0', fontSize: 11, lineHeight: 1.4, width: 240, textAlign: 'left'
-        }}>
-          <div style={{ color: COLORS.warn, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>💭 Thought</div>
-          {cur.thought}
-        </div>
-      </Html>
-
-      {cur.action && (
-        <Html position={[-4.5, 0.5, 0]} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
-          <div style={{
-            background: 'rgba(15,22,35,0.92)', border: `1px solid ${COLORS.tool}`, borderRadius: 10,
-            padding: '8px 12px', color: '#fdf6f0', fontSize: 11, lineHeight: 1.4, width: 220, fontFamily: 'ui-monospace, Menlo, monospace'
-          }}>
-            <div style={{ color: COLORS.tool, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'inherit' }}>🛠 Action</div>
-            {cur.action}
-          </div>
-        </Html>
-      )}
-
-      {cur.obs && (
-        <Html position={[4.5, 0.5, 0]} center distanceFactor={10} style={{ pointerEvents: 'none' }}>
-          <div style={{
-            background: 'rgba(15,22,35,0.92)', border: `1px solid ${COLORS.rag}`, borderRadius: 10,
-            padding: '8px 12px', color: '#fdf6f0', fontSize: 11, lineHeight: 1.4, width: 220
-          }}>
-            <div style={{ color: COLORS.rag, fontWeight: 700, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 }}>👀 Observation</div>
-            {cur.obs}
-          </div>
-        </Html>
-      )}
-    </>
-  );
-}
 
 export default function ReactLoop() {
   const [step, setStep] = useState(0);
+  const cur = STEPS[Math.min(step, STEPS.length - 1)];
+  const t = step >= 1;
+  const a = step >= 2;
+  const o = step >= 3;
+  const loopBack = step >= 4;
+
   return (
     <ChapterShell
       chapter={C}
-      intro="The agent works the way you do when you investigate something. A small thought, a small action, then look at what you learned. Repeat."
+      intro="The agent investigates the way you would. A small thought, a small action, then look at what you learned. Repeat."
       demo={
-        <Scene3D
-          height="460px"
-          camera={{ position: [0, 1, 12], fov: 50 }}
-          hint="Drag to rotate the loop · scroll to zoom"
-        >
-          <ReactScene step={step} />
-        </Scene3D>
+        <FlowDiagram
+          height={H}
+          width={W}
+          arrows={
+            <>
+              <FlowArrow from={C_BRAIN}   to={C_THOUGHT} color={FLOW_COLORS.warn} active={t} curve={-0.05} label="1. plan" />
+              <FlowArrow from={C_THOUGHT} to={C_ACTION}  color={FLOW_COLORS.tool} active={a} curve={-0.2} label="2. call" />
+              <FlowArrow from={C_ACTION}  to={C_OBSERV}  color={FLOW_COLORS.rag}  active={o} curve={0.2}  label="3. result" />
+              <FlowArrow from={C_OBSERV}  to={C_BRAIN}   color={FLOW_COLORS.warn} active={loopBack} curve={0} label="↻ next thought" />
+            </>
+          }
+          nodes={
+            <>
+              <div style={nodeStyle(C_BRAIN, 130, 50)}>
+                <FlowNode tone="agent" emoji="🤖" title="Agent (LLM)" size="sm" active={t} />
+              </div>
+              <div style={nodeStyle(C_THOUGHT, 280, 80)}>
+                <FlowNode
+                  tone="warn"
+                  emoji="💭"
+                  title="Thought"
+                  size="sm"
+                  sub={cur.thought}
+                  dim={!t}
+                  active={t && !a}
+                />
+              </div>
+              <div style={nodeStyle(C_ACTION, 260, 80)}>
+                <FlowNode
+                  tone="tool"
+                  emoji="🛠"
+                  title="Action"
+                  size="sm"
+                  sub={<code className="text-[11px]">{cur.action || '…'}</code>}
+                  dim={!a}
+                  active={a && !o}
+                />
+              </div>
+              <div style={nodeStyle(C_OBSERV, 280, 80)}>
+                <FlowNode
+                  tone="rag"
+                  emoji="👀"
+                  title="Observation"
+                  size="sm"
+                  sub={cur.obs || '…'}
+                  dim={!o}
+                  active={o && !loopBack}
+                />
+              </div>
+            </>
+          }
+        />
       }
       story={
         <StorySteps
@@ -113,7 +120,7 @@ export default function ReactLoop() {
           onStep={setStep}
         />
       }
-      outro="Next: if the agent can loop, why would anyone use a fixed pipeline that can't?"
+      outro="Next: if the agent can loop, why does anyone still use a fixed pipeline that can't?"
     />
   );
 }

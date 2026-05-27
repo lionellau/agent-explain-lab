@@ -1,10 +1,10 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
-  height?: string; // e.g. '420px'
+  height?: string;
   camera?: { position: [number, number, number]; fov?: number };
   orbit?: boolean;
   stars?: boolean;
@@ -12,8 +12,9 @@ interface Props {
 }
 
 /**
- * Shared 3D canvas wrapper. Same ink-soft frame as the rest of the lab,
- * same lighting, same fallback for browsers without WebGL.
+ * Shared 3D canvas wrapper. The "no WebGL" fallback is only rendered
+ * when the Canvas fails to mount a <canvas> element — so it never bleeds
+ * through a working scene.
  */
 export default function Scene3D({
   children,
@@ -23,12 +24,28 @@ export default function Scene3D({
   stars = true,
   hint = 'Drag to rotate · scroll to zoom'
 }: Props) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [webglOk, setWebglOk] = useState(true);
+
+  useEffect(() => {
+    // After mount + first paint, if there is no real <canvas> in the wrapper,
+    // we assume WebGL failed.
+    const t = window.setTimeout(() => {
+      const cv = wrapRef.current?.querySelector('canvas');
+      setWebglOk(Boolean(cv));
+    }, 250);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="relative bg-ink-soft/60 border border-white/10 rounded-2xl overflow-hidden" style={{ height }}>
-      <div className="absolute inset-0 flex items-center justify-center text-paper/40 text-sm text-center px-6 pointer-events-none">
-        Your browser couldn't start WebGL. Open this on a desktop browser with hardware acceleration.
-      </div>
-      <Canvas camera={camera} className="relative z-10">
+    <div ref={wrapRef} className="relative bg-ink-soft/60 border border-white/10 rounded-2xl overflow-hidden" style={{ height }}>
+      {!webglOk && (
+        <div className="absolute inset-0 flex items-center justify-center text-paper/50 text-sm text-center px-6 z-20 bg-ink-soft">
+          Your browser couldn't start WebGL. Open this on a desktop browser with hardware acceleration.
+        </div>
+      )}
+      <Canvas camera={camera} className="relative z-10" gl={{ alpha: false }}>
+        <color attach="background" args={['#0f0f1e']} />
         <ambientLight intensity={0.55} />
         <directionalLight position={[6, 10, 8]} intensity={0.9} />
         <pointLight position={[-8, 4, 6]} intensity={0.6} color="#5cc8ff" />
@@ -37,7 +54,7 @@ export default function Scene3D({
         {children}
         {orbit && <OrbitControls enablePan={false} minDistance={5} maxDistance={22} />}
       </Canvas>
-      <div className="absolute bottom-3 left-3 text-[11px] text-paper/40 pointer-events-none">{hint}</div>
+      <div className="absolute bottom-3 left-3 text-[11px] text-paper/40 pointer-events-none z-20">{hint}</div>
     </div>
   );
 }

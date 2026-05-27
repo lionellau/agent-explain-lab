@@ -1,5 +1,5 @@
-import { Routes, Route, NavLink, Link, useLocation } from 'react-router-dom';
-import { CHAPTERS } from './chapters';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import TopNav from './components/TopNav';
 import Home from './pages/Home';
 import ChatbotVsAgent from './pages/ChatbotVsAgent';
 import ReactLoop from './pages/ReactLoop';
@@ -21,41 +21,7 @@ export default function App() {
   const loc = useLocation();
   return (
     <div className="min-h-full flex flex-col">
-      <header className="sticky top-0 z-30 backdrop-blur bg-ink/70 border-b border-white/5">
-        <nav className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
-          <Link to="/" className="font-bold text-lg tracking-tight flex items-center gap-2 shrink-0">
-            <span className="text-2xl">🤖</span>
-            <span className="bg-gradient-to-r from-grape-soft to-sun bg-clip-text text-transparent">Agent Lab</span>
-          </Link>
-          <div className="flex gap-1 flex-wrap">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `px-3 py-1.5 rounded-full text-sm transition-colors ${
-                  isActive ? 'bg-grape text-white shadow-sm' : 'text-paper/70 hover:text-paper hover:bg-white/5'
-                }`
-              }
-            >🏠 Home</NavLink>
-            {CHAPTERS.map((c) => (
-              <NavLink
-                key={c.path}
-                to={c.path}
-                className={({ isActive }) =>
-                  `px-2.5 py-1.5 rounded-full text-xs transition-colors ${
-                    isActive ? 'bg-grape text-white shadow-sm' : 'text-paper/60 hover:text-paper hover:bg-white/5'
-                  }`
-                }
-                title={c.title}
-              >
-                <span className="mr-1">{c.emoji}</span>
-                <span className="font-mono text-[10px] opacity-60 mr-1">{c.n}</span>
-                <span className="hidden md:inline">{c.title}</span>
-              </NavLink>
-            ))}
-          </div>
-        </nav>
-      </header>
+      <TopNav />
 
       <main key={loc.pathname} className="flex-1 anim-float-in">
         <Routes>
