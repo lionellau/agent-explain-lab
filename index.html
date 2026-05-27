@@ -1,50 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Agent Explain Lab — How AI Agents Actually Work</title>
-    <link rel="stylesheet" href="/src/style.css" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Agent Lab — How AI agents actually work</title>
   </head>
   <body>
-    <div id="app">
-      <aside id="nav" aria-label="Modules"></aside>
-      <main id="stage">
-        <canvas id="canvas"></canvas>
-        <header id="topbar">
-          <div id="title-block">
-            <div id="module-num">M00</div>
-            <div>
-              <h1 id="module-title">Loading…</h1>
-              <p id="module-sub">Story: planning a 3-day weekend trip to Lisbon, under $500</p>
-            </div>
-          </div>
-          <div id="step-pager">
-            <button id="btn-prev-step" title="Previous step">◀</button>
-            <span id="step-label">Step 0 / 0</span>
-            <button id="btn-next-step" title="Next step">▶</button>
-            <button id="btn-play" title="Auto-play">▶▶</button>
-            <button id="btn-reset" title="Reset module">↺</button>
-          </div>
-        </header>
-        <section id="story" aria-live="polite"></section>
-        <section id="llm-callout" aria-live="polite"></section>
-      </main>
-      <aside id="rightpanel">
-        <div class="panel-section">
-          <h3>Controls</h3>
-          <div id="controls"></div>
-        </div>
-        <div class="panel-section">
-          <h3>Output dashboard</h3>
-          <div id="output"></div>
-        </div>
-        <div class="panel-section">
-          <h3>What changed?</h3>
-          <div id="delta"></div>
-        </div>
-      </aside>
-    </div>
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
