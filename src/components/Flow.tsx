@@ -11,17 +11,20 @@ import type { ReactNode } from 'react';
 
 type Tone = 'user' | 'chatbot' | 'agent' | 'tool' | 'rag' | 'memory' | 'good' | 'bad' | 'warn' | 'neutral';
 
+// Bodies use solid ink-soft (always readable). Borders and title text carry the
+// semantic color. /25 backdrop tints just enough to feel "owned" by the tone
+// without sacrificing contrast on the body sub-text.
 const TONE: Record<Tone, { bg: string; border: string; text: string; ring: string }> = {
-  user:     { bg: 'bg-sun/15',    border: 'border-sun/40',         text: 'text-sun',         ring: 'ring-sun/50' },
-  chatbot:  { bg: 'bg-white/8',   border: 'border-white/25',       text: 'text-paper/80',    ring: 'ring-white/30' },
-  agent:    { bg: 'bg-grape/15',  border: 'border-grape-soft/50',  text: 'text-grape-soft',  ring: 'ring-grape-soft/60' },
-  tool:     { bg: 'bg-sky/15',    border: 'border-sky/45',         text: 'text-sky',         ring: 'ring-sky/55' },
-  rag:      { bg: 'bg-mint/15',   border: 'border-mint/45',        text: 'text-mint',        ring: 'ring-mint/55' },
-  memory:   { bg: 'bg-rose/15',   border: 'border-rose/45',        text: 'text-rose',        ring: 'ring-rose/55' },
-  good:     { bg: 'bg-mint/15',   border: 'border-mint/50',        text: 'text-mint',        ring: 'ring-mint/55' },
-  bad:      { bg: 'bg-coral/15',  border: 'border-coral/50',       text: 'text-coral',       ring: 'ring-coral/55' },
-  warn:     { bg: 'bg-sun/15',    border: 'border-sun/45',         text: 'text-sun',         ring: 'ring-sun/55' },
-  neutral:  { bg: 'bg-white/5',   border: 'border-white/15',       text: 'text-paper/70',    ring: 'ring-white/20' }
+  user:     { bg: 'bg-sun/25',     border: 'border-sun/60',         text: 'text-sun',         ring: 'ring-sun/60' },
+  chatbot:  { bg: 'bg-white/10',   border: 'border-white/35',       text: 'text-paper',       ring: 'ring-white/40' },
+  agent:    { bg: 'bg-grape/25',   border: 'border-grape-soft/65',  text: 'text-grape-soft',  ring: 'ring-grape-soft/70' },
+  tool:     { bg: 'bg-sky/25',     border: 'border-sky/60',         text: 'text-sky',         ring: 'ring-sky/65' },
+  rag:      { bg: 'bg-mint/25',    border: 'border-mint/60',        text: 'text-mint',        ring: 'ring-mint/65' },
+  memory:   { bg: 'bg-rose/25',    border: 'border-rose/60',        text: 'text-rose',        ring: 'ring-rose/65' },
+  good:     { bg: 'bg-mint/25',    border: 'border-mint/65',        text: 'text-mint',        ring: 'ring-mint/65' },
+  bad:      { bg: 'bg-coral/25',   border: 'border-coral/65',       text: 'text-coral',       ring: 'ring-coral/65' },
+  warn:     { bg: 'bg-sun/25',     border: 'border-sun/60',         text: 'text-sun',         ring: 'ring-sun/65' },
+  neutral:  { bg: 'bg-white/8',    border: 'border-white/25',       text: 'text-paper/90',    ring: 'ring-white/30' }
 };
 
 interface FlowNodeProps {
@@ -42,16 +45,16 @@ export function FlowNode({ tone = 'neutral', emoji, title, sub, active = true, d
   const pad = size === 'sm' ? 'px-3 py-2' : size === 'lg' ? 'px-5 py-4' : 'px-4 py-3';
   return (
     <div
-      className={`relative rounded-xl border ${t.bg} ${t.border} ${pad} transition-all duration-500 ${
-        dim ? 'opacity-30' : 'opacity-100'
-      } ${active && !dim ? `ring-2 ${t.ring} ring-offset-2 ring-offset-ink-soft anim-float-in` : ''} ${className}`}
+      className={`relative rounded-xl border-2 bg-ink-soft ${t.border} ${pad} transition-all duration-500 ${
+        dim ? 'opacity-35' : 'opacity-100'
+      } ${active && !dim ? `ring-2 ${t.ring} ring-offset-2 ring-offset-ink anim-float-in` : ''} ${className}`}
       style={style}
     >
       <div className="flex items-center gap-2">
         {emoji && <span className="text-xl shrink-0">{emoji}</span>}
         <div className="min-w-0">
-          <div className={`font-semibold ${t.text} ${size === 'sm' ? 'text-xs' : 'text-sm'} leading-tight`}>{title}</div>
-          {sub && <div className={`text-paper/65 ${size === 'sm' ? 'text-[11px]' : 'text-xs'} leading-snug mt-0.5`}>{sub}</div>}
+          <div className={`font-bold ${t.text} ${size === 'sm' ? 'text-xs' : 'text-sm'} leading-tight`}>{title}</div>
+          {sub && <div className={`text-paper ${size === 'sm' ? 'text-[11px]' : 'text-xs'} leading-snug mt-0.5`}>{sub}</div>}
         </div>
       </div>
     </div>

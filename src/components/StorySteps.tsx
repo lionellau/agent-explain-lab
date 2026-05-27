@@ -62,22 +62,22 @@ export default function StorySteps({
 
   return (
     <section className={className}>
-      <div className={`relative rounded-2xl border ${accentBorder} ${accentBg} p-5 mb-3`}>
+      <div className={`relative rounded-2xl border ${accentBorder} bg-ink-soft p-4 sm:p-5 mb-3`}>
         <div className="flex items-center gap-2 mb-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border ${accentBorder} text-[11px] uppercase tracking-widest font-bold ${accent} badge-shimmer`}>
             <span>📖</span><span>Explanation</span>
           </span>
-          <span className="text-paper/40 text-xs font-mono ml-auto">
+          <span className="text-paper/60 text-xs font-mono ml-auto">
             Step {step + 1} of {beats.length}
           </span>
         </div>
 
-        <p key={`cap-${step}`} className={`anim-float-in text-xl md:text-[22px] leading-snug font-semibold ${accent}`}>
+        <p key={`cap-${step}`} className={`anim-float-in text-lg sm:text-xl md:text-[22px] leading-snug font-semibold ${accent}`}>
           {beat?.caption}
         </p>
         {beat?.llmNote && (
-          <p key={`note-${step}`} className="anim-float-in mt-3 text-sm text-paper/75 leading-relaxed border-l-2 border-white/15 pl-3">
-            <span className="text-paper/40 uppercase tracking-widest text-[10px] block mb-0.5">↳ In an LLM</span>
+          <p key={`note-${step}`} className="anim-float-in mt-3 text-sm text-paper/90 leading-relaxed border-l-2 border-white/25 pl-3 hidden sm:block">
+            <span className="text-paper/55 uppercase tracking-widest text-[10px] block mb-0.5">↳ In an LLM</span>
             {beat.llmNote}
           </p>
         )}
@@ -89,18 +89,18 @@ export default function StorySteps({
             key={i}
             onClick={() => setStep(i)}
             className={`h-1.5 flex-1 rounded-full transition-all ${
-              i === step ? 'bg-grape-soft' : i < step ? 'bg-white/30 hover:bg-white/50' : 'bg-white/10 hover:bg-white/20'
+              i === step ? 'bg-grape-soft' : i < step ? 'bg-white/40 hover:bg-white/60' : 'bg-white/15 hover:bg-white/30'
             }`}
             aria-label={`Jump to step ${i + 1}`}
           />
         ))}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={prev}
           disabled={isFirst}
-          className="px-4 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
+          className="px-3 sm:px-4 py-2.5 rounded-lg bg-white/8 hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-semibold text-paper transition-colors"
         >
           ← Back
         </button>
@@ -108,7 +108,7 @@ export default function StorySteps({
         <button
           onClick={() => setAutoplay((a) => !a)}
           className={`px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
-            autoplay ? 'bg-grape-soft/20 text-grape-soft' : 'bg-white/5 hover:bg-white/10 text-paper/70'
+            autoplay ? 'bg-grape-soft/25 text-grape-soft' : 'bg-white/8 hover:bg-white/15 text-paper/80'
           }`}
           aria-label={autoplay ? 'Pause autoplay' : 'Enable autoplay'}
           title={autoplay ? 'Autoplay on — click to pause' : 'Optional autoplay'}
@@ -118,16 +118,16 @@ export default function StorySteps({
 
         <button
           onClick={next}
-          className={`ml-auto px-6 py-2.5 rounded-lg bg-gradient-to-r from-grape to-grape-soft text-white font-bold text-base transition-all hover:scale-[1.03] ${
+          className={`ml-auto px-5 sm:px-6 py-2.5 rounded-lg bg-gradient-to-r from-grape to-grape-soft text-white font-bold text-base transition-all hover:scale-[1.03] ${
             glow ? 'glow-ring' : 'opacity-80'
           }`}
         >
-          {isLast ? '↻ Replay from start' : 'Next step →'}
+          {isLast ? '↻ Replay' : 'Next step →'}
         </button>
       </div>
 
       {!glow && (
-        <p className="mt-2 text-[11px] text-paper/35 text-right pr-1 italic">
+        <p className="mt-2 text-[11px] text-paper/50 text-right pr-1 italic hidden sm:block">
           Read the explanation above, then advance when ready…
         </p>
       )}
