@@ -17,28 +17,26 @@ const BEATS: Beat[] = [
     llmNote: 'For risky tools (payments, email send) the orchestrator stops and asks a human first.' }
 ];
 
-const W = 1000;
-const H = 380;
+const W = 720;
+const H = 400;
 
 const TOOLS = [
   { id: 'flights',  label: '✈ Flights' },
   { id: 'hotels',   label: '🏨 Hotels' },
-  { id: 'calendar', label: '📅 Calendar' },
-  { id: 'weather',  label: '☁ Weather' },
+  { id: 'calendar', label: '📅 Cal' },
+  { id: 'weather',  label: '☁ Wx' },
   { id: 'email',    label: '📧 Email' },
   { id: 'maps',     label: '🗺 Maps' }
 ];
 
 // Left panel: messy direct wiring. Right panel: clean MCP-hub wiring.
-// Each panel uses half the width.
-const LEFT_AGENT  = { x: 230, y: 60 };
-const RIGHT_AGENT = { x: 730, y: 60 };
-const RIGHT_HUB   = { x: 730, y: 180 };
+const LEFT_AGENT  = { x: 175, y: 60 };
+const RIGHT_AGENT = { x: 545, y: 60 };
+const RIGHT_HUB   = { x: 545, y: 190 };
 
-// 6 tools spread across each half. Each half is ~ x[0..450] (left) and x[510..960] (right).
-// 6 columns × 75px gap = 375px range, centered.
-const leftToolPos  = (i: number) => ({ x:  50 + i * 78,  y: 320 });
-const rightToolPos = (i: number) => ({ x: 555 + i * 78,  y: 320 });
+// 6 tools spread across each half. Each half is ~340px wide.
+const leftToolPos  = (i: number) => ({ x:  35 + i * 56,  y: 330 });
+const rightToolPos = (i: number) => ({ x: 405 + i * 56,  y: 330 });
 
 function nodeStyle(p: { x: number; y: number }, w: number, h: number) {
   return {
@@ -65,8 +63,8 @@ export default function ToolsMCP() {
           width={W}
           arrows={
             <>
-              {/* Vertical separator */}
-              <line x1="500" y1="20" x2="500" y2={H - 20} stroke="#ffffff15" strokeDasharray="4 6" />
+              {/* Vertical separator at the middle of the design width */}
+              <line x1={W / 2} y1="20" x2={W / 2} y2={H - 20} stroke="#ffffff15" strokeDasharray="4 6" />
 
               {/* LEFT: direct messy wires — every tool has its own cable, with arcs that overlap */}
               {showLeft && TOOLS.map((_, i) => (
@@ -113,7 +111,7 @@ export default function ToolsMCP() {
                 <FlowNode tone="agent" emoji="🤖" title="Agent" size="sm" dim={!showLeft} />
               </div>
               {TOOLS.map((t, i) => (
-                <div key={'lt-' + t.id} style={nodeStyle(leftToolPos(i), 68, 32)}>
+                <div key={'lt-' + t.id} style={nodeStyle(leftToolPos(i), 52, 32)}>
                   <FlowNode tone="tool" title={t.label} size="sm" dim={!showLeft} />
                 </div>
               ))}
@@ -128,7 +126,7 @@ export default function ToolsMCP() {
               {TOOLS.map((t, i) => {
                 const isFail = failIdx === i;
                 return (
-                  <div key={'rt-' + t.id} style={nodeStyle(rightToolPos(i), 68, 32)}>
+                  <div key={'rt-' + t.id} style={nodeStyle(rightToolPos(i), 52, 32)}>
                     <FlowNode tone={isFail ? 'bad' : 'tool'} title={isFail ? '⚠ Email' : t.label} size="sm" dim={!showRight} active={isFail} />
                   </div>
                 );

@@ -19,14 +19,14 @@ const BEATS: Beat[] = [
     llmNote: 'The model keeps cycling until its thought says "I have enough — write the answer."' }
 ];
 
-const W = 1000;
+const W = 720;
 const H = 380;
 
 // Three nodes in a triangle, with the agent brain in the middle.
-const C_THOUGHT = { x: 240, y: 100 };
-const C_ACTION  = { x: 760, y: 100 };
-const C_OBSERV  = { x: 500, y: 290 };
-const C_BRAIN   = { x: 500, y: 180 };
+const C_THOUGHT = { x: 170, y: 100 };
+const C_ACTION  = { x: 550, y: 100 };
+const C_OBSERV  = { x: 360, y: 290 };
+const C_BRAIN   = { x: 360, y: 180 };
 
 function nodeStyle(p: { x: number; y: number }, w: number, h: number) {
   return {

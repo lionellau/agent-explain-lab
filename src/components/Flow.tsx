@@ -135,17 +135,26 @@ interface DiagramProps {
   className?: string;
 }
 
-export function FlowDiagram({ height = 320, width = 1000, arrows, nodes, className = '' }: DiagramProps) {
+export function FlowDiagram({ height = 320, width = 720, arrows, nodes, className = '' }: DiagramProps) {
+  // The diagram has a fixed design width so node text never overlaps.
+  // On screens narrower than that, the parent scrolls horizontally so
+  // mobile users pan instead of seeing crammed/overlapping labels.
   return (
-    <div className={`relative w-full ${className}`} style={{ height }}>
-      <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="xMidYMid meet"
+    <div className="-mx-3 md:-mx-4 lg:mx-0 overflow-x-auto overflow-y-hidden pb-2">
+      <div
+        className={`relative ${className}`}
+        style={{ height, width, minWidth: width, marginLeft: 12, marginRight: 12 }}
       >
-        {arrows}
-      </svg>
-      <div className="absolute inset-0">{nodes}</div>
+        <svg
+          className="absolute inset-0"
+          width={width}
+          height={height}
+          viewBox={`0 0 ${width} ${height}`}
+        >
+          {arrows}
+        </svg>
+        <div className="absolute inset-0">{nodes}</div>
+      </div>
     </div>
   );
 }

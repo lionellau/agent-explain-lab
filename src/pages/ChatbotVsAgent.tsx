@@ -1,141 +1,160 @@
 import { useState } from 'react';
 import ChapterShell from '../components/ChapterShell';
 import StorySteps, { type Beat } from '../components/StorySteps';
-import { FlowDiagram, FlowNode, FlowArrow, FLOW_COLORS } from '../components/Flow';
+import { FlowNode } from '../components/Flow';
 import { CHAPTERS, STORY } from '../chapters';
 
 const C = CHAPTERS[0];
 
 const BEATS: Beat[] = [
-  { caption: `${STORY.who} asks: "${STORY.ask}"`,
-    llmNote: 'The same question is sent to two helpers. Watch what each one does with it.',
+  { caption: `Same question, two completely different helpers.`,
+    llmNote: 'Watch what each one does with Sam\'s identical request.',
+    readingMs: 3000 },
+  { caption: 'The chatbot replies immediately — from what it already remembers.',
+    llmNote: 'Plausible, fluent, but nothing was checked against the real world.',
     readingMs: 3200 },
-  { caption: 'The chatbot answers right away, from memory only.',
-    llmNote: 'It writes a fluent reply, but nothing is checked against the real world.',
-    readingMs: 3200 },
-  { caption: 'The agent pauses — "do I need real info first?"',
+  { caption: 'The agent first pauses. "Do I need real info?"',
     llmNote: 'Before replying, it decides whether to call tools, search, or just answer.',
+    readingMs: 3000 },
+  { caption: 'It calls real APIs and reads the results back.',
+    llmNote: 'Flight prices, hotel availability, weather — actual data, not guesses.',
     readingMs: 3200 },
-  { caption: 'It calls real tools — flight prices, hotels, weather.',
-    llmNote: 'Each tool is a real API. The results come back as facts the model now reads.',
-    readingMs: 3400 },
-  { caption: 'Now the reply quotes real numbers, not guesses.',
-    llmNote: 'Same model. The difference is access to tools, time to think, and a habit of checking.',
+  { caption: 'Final replies look very different. That\'s the whole lesson.',
+    llmNote: 'Same underlying model. The difference is: one was given tools and time to use them.',
     readingMs: 3400 }
 ];
 
-// Geometry for the SVG arrow layer + matching node positions.
-// viewBox is 1000 × 420 — nodes use percent positions so they line up.
-const W = 1000;
-const H = 420;
-const Q = { x: 70,  y: H / 2 }; // request anchor
+interface ColProps {
+  step: number;
+  side: 'chatbot' | 'agent';
+}
 
-// Chatbot lane (top)
-const CB_BRAIN = { x: 360, y: 110 };
-const CB_REPLY = { x: 760, y: 110 };
+function Column({ step, side }: ColProps) {
+  const isChatbot = side === 'chatbot';
+  const showReply = isChatbot ? step >= 1 : step >= 3;
+  const showProcess = isChatbot ? step >= 1 : step >= 2;
+  const showTools = !isChatbot && step >= 3;
 
-// Agent lane (bottom)
-const AG_BRAIN = { x: 360, y: H - 110 };
-const AG_TOOL1 = { x: 600, y: H - 60 };
-const AG_TOOL2 = { x: 600, y: H - 110 };
-const AG_TOOL3 = { x: 600, y: H - 160 };
-const AG_REPLY = { x: 830, y: H - 110 };
+  return (
+    <div className={`flex-1 min-w-0 rounded-2xl border p-4 flex flex-col gap-3 ${
+      isChatbot ? 'bg-white/5 border-white/15' : 'bg-grape/10 border-grape-soft/40'
+    }`}>
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${
+          isChatbot ? 'bg-white/10 text-paper/80' : 'bg-grape-soft/20 text-grape-soft'
+        }`}>
+          <span className="text-base">{isChatbot ? '🗣️' : '🤖'}</span>
+          <span>Path {isChatbot ? 'A' : 'B'} · {isChatbot ? 'Chatbot' : 'Agent'}</span>
+        </span>
+      </div>
 
-function nodeStyle(pos: { x: number; y: number }, w: number, h: number) {
-  return {
-    position: 'absolute' as const,
-    left: `calc(${(pos.x / W) * 100}% - ${w / 2}px)`,
-    top:  `calc(${(pos.y / H) * 100}% - ${h / 2}px)`,
-    width: w
-  };
+      {/* Same question shown on both sides */}
+      <FlowNode
+        tone="user"
+        emoji="❓"
+        title="Sam asks"
+        size="sm"
+        sub={<span className="italic">"{STORY.ask}"</span>}
+      />
+
+      <div className="flex justify-center text-xl text-paper/30">↓</div>
+
+      {/* Process */}
+      <FlowNode
+        tone={isChatbot ? 'chatbot' : 'agent'}
+        emoji={isChatbot ? '💭' : '🧠'}
+        title={isChatbot ? 'Recall from memory' : 'Think + plan'}
+        size="sm"
+        sub={isChatbot ? 'no checks, no calls' : 'check tools first'}
+        dim={!showProcess}
+        active={showProcess && !showReply}
+      />
+
+      {/* Agent extra: tool layer */}
+      {!isChatbot && (
+        <>
+          <div className="flex justify-center text-xl text-paper/30">↓</div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[
+              { label: '✈ Flights', sub: '$295' },
+              { label: '🏨 Hotels',  sub: '$38/nt' },
+              { label: '☁ Weather', sub: '15°C' }
+            ].map((t, i) => (
+              <div key={t.label}
+                className={`text-center rounded-lg border text-[11px] px-1.5 py-1 transition-all ${
+                  showTools ? 'bg-sky/15 border-sky/40 text-sky' : 'bg-white/5 border-white/10 text-paper/30'
+                }`}>
+                <div className="font-semibold leading-tight">{t.label}</div>
+                {showTools && <div className="text-paper/70 text-[10px]">{t.sub}</div>}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="flex justify-center text-xl text-paper/30">↓</div>
+
+      {/* Reply */}
+      {isChatbot ? (
+        <FlowNode
+          tone="chatbot"
+          emoji="💬"
+          title="Generic reply"
+          size="sm"
+          sub={'"Try Kayak for flights, Hostelworld for stays. Have fun!"'}
+          dim={!showReply}
+          active={showReply}
+        />
+      ) : (
+        <FlowNode
+          tone="good"
+          emoji="✅"
+          title="Grounded plan"
+          size="sm"
+          sub={
+            <div className="space-y-0.5">
+              <div>Iberia JFK→LIS · $295</div>
+              <div>Hostel Alfama 2nt · $76</div>
+              <div>Activities · $56</div>
+              <div className="text-mint font-semibold mt-1">$427 ✓ under $500</div>
+            </div>
+          }
+          dim={!showReply}
+          active={showReply}
+        />
+      )}
+
+      {/* Outcome row */}
+      {showReply && (
+        <div className={`mt-1 rounded-lg px-3 py-2 text-[11px] anim-float-in ${
+          isChatbot
+            ? 'bg-coral/10 border border-coral/30 text-coral'
+            : 'bg-mint/10 border border-mint/30 text-mint'
+        }`}>
+          {isChatbot
+            ? '✗ Fast but ungrounded — same as guessing.'
+            : '✓ Slower, but every number is real.'}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ChatbotVsAgent() {
   const [step, setStep] = useState(0);
-  const chatbotActive = step >= 1;
-  const agentThinking = step >= 2;
-  const toolsActive   = step >= 3;
-  const agentReply    = step >= 4;
-
   return (
     <ChapterShell
       chapter={C}
-      intro="The chatbot answers from what it already remembers. An agent first goes and checks. Watch the same question land on each of them."
+      intro="Same question, two different helpers. Watch them side by side — one talks, one acts."
       demo={
-        <FlowDiagram
-          height={H}
-          width={W}
-          arrows={
-            <>
-              {/* Lane separator */}
-              <line x1="100" y1={H/2} x2="900" y2={H/2} stroke="#ffffff15" strokeDasharray="4 6" />
-
-              {/* Chatbot lane arrows */}
-              <FlowArrow from={Q} to={CB_BRAIN} color={FLOW_COLORS.chatbot} active={chatbotActive} curve={-0.05} />
-              <FlowArrow from={CB_BRAIN} to={CB_REPLY} color={FLOW_COLORS.chatbot} active={chatbotActive} label="reply" curve={0} />
-
-              {/* Agent lane arrows */}
-              <FlowArrow from={Q} to={AG_BRAIN} color={FLOW_COLORS.user} active={agentThinking} curve={0.05} />
-              <FlowArrow from={AG_BRAIN} to={AG_TOOL1} color={FLOW_COLORS.tool} active={toolsActive} curve={-0.12} />
-              <FlowArrow from={AG_BRAIN} to={AG_TOOL2} color={FLOW_COLORS.tool} active={toolsActive} curve={0} />
-              <FlowArrow from={AG_BRAIN} to={AG_TOOL3} color={FLOW_COLORS.tool} active={toolsActive} curve={0.12} />
-              <FlowArrow from={AG_TOOL1} to={AG_REPLY} color={FLOW_COLORS.rag} active={agentReply} curve={-0.08} />
-              <FlowArrow from={AG_TOOL2} to={AG_REPLY} color={FLOW_COLORS.rag} active={agentReply} curve={0} />
-              <FlowArrow from={AG_TOOL3} to={AG_REPLY} color={FLOW_COLORS.rag} active={agentReply} curve={0.08} />
-            </>
-          }
-          nodes={
-            <>
-              {/* Lane labels */}
-              <div className="absolute left-2 top-2 text-[10px] uppercase tracking-widest text-paper/40 font-semibold">🗣 Chatbot path</div>
-              <div className="absolute left-2 bottom-2 text-[10px] uppercase tracking-widest text-paper/40 font-semibold">🤖 Agent path</div>
-
-              {/* User question */}
-              <div style={nodeStyle(Q, 110, 60)}>
-                <FlowNode tone="user" emoji="❓" title="Sam's question" sub="trip to Lisbon, $500" size="sm" />
-              </div>
-
-              {/* Chatbot lane */}
-              <div style={nodeStyle(CB_BRAIN, 130, 60)}>
-                <FlowNode tone="chatbot" emoji="🧠" title="Chatbot" sub="answer from memory" size="sm" dim={!chatbotActive} />
-              </div>
-              <div style={nodeStyle(CB_REPLY, 220, 70)}>
-                <FlowNode tone="chatbot" emoji="💬" title="Generic reply" sub={'"Try Kayak for flights, Hostelworld for stays!"'} size="sm" dim={!chatbotActive} />
-              </div>
-
-              {/* Agent lane */}
-              <div style={nodeStyle(AG_BRAIN, 140, 60)}>
-                <FlowNode tone="agent" emoji="🤖" title="Agent" sub={agentThinking ? '"let me check first…"' : 'thinking'} size="sm" dim={!agentThinking} active={agentThinking && !toolsActive} />
-              </div>
-              <div style={nodeStyle(AG_TOOL1, 110, 36)}>
-                <FlowNode tone="tool" title="✈ Flights API" size="sm" dim={!toolsActive} />
-              </div>
-              <div style={nodeStyle(AG_TOOL2, 110, 36)}>
-                <FlowNode tone="tool" title="🏨 Hotels API" size="sm" dim={!toolsActive} />
-              </div>
-              <div style={nodeStyle(AG_TOOL3, 110, 36)}>
-                <FlowNode tone="rag" title="☁ Weather API" size="sm" dim={!toolsActive} />
-              </div>
-              <div style={nodeStyle(AG_REPLY, 240, 110)}>
-                <FlowNode
-                  tone="good"
-                  emoji="✅"
-                  title="Grounded plan"
-                  size="sm"
-                  dim={!agentReply}
-                  sub={
-                    <div className="space-y-0.5">
-                      <div>Iberia JFK→LIS · $295</div>
-                      <div>Hostel Alfama 2nt · $76</div>
-                      <div>Activities · $56</div>
-                      <div className="text-mint font-semibold mt-1">Total $427 ✓ under $500</div>
-                    </div>
-                  }
-                />
-              </div>
-            </>
-          }
-        />
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+          <Column step={step} side="chatbot" />
+          <div className="flex items-center justify-center sm:self-stretch py-1 sm:py-0">
+            <div className="text-paper/40 font-extrabold text-base sm:text-2xl tracking-widest px-2 select-none border border-paper/15 rounded-full sm:rounded sm:border-none px-3 sm:px-1 bg-ink-soft sm:bg-transparent">VS</div>
+          </div>
+          <Column step={step} side="agent" />
+        </div>
       }
       story={
         <StorySteps
@@ -146,7 +165,7 @@ export default function ChatbotVsAgent() {
           onStep={setStep}
         />
       }
-      outro="Next: if an agent can use tools, how does it actually decide which one to call?"
+      outro="Next: if the agent can use tools, how does it pick which one to call?"
     />
   );
 }

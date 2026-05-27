@@ -27,11 +27,11 @@ const BEATS: Beat[] = [
     llmNote: 'Production teams cap iterations, message sizes, and how many agents can see each other.' }
 ];
 
-const W = 1000;
+const W = 720;
 const H = 380;
 const CX = W / 2;
 const CY = H / 2;
-const R = 130;
+const R = 140;
 
 function nodeStyle(p: { x: number; y: number }, w: number, h: number) {
   return {
@@ -91,7 +91,7 @@ export default function MultiAgent() {
             nodes={
               <>
                 {team.map((r, i) => (
-                  <div key={r.name} style={nodeStyle(positions[i], 150, 56)}>
+                  <div key={r.name} style={nodeStyle(positions[i], 130, 56)}>
                     <FlowNode tone={r.tone} emoji={r.emoji} title={r.name} sub={r.sub} size="sm" />
                   </div>
                 ))}

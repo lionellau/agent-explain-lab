@@ -30,9 +30,9 @@ const BEATS: Beat[] = [
     llmNote: 'You now have a complete mental model: LLM + memory + retrieval + tools + critic, controlled by a loop.' }
 ];
 
-const W = 1000;
+const W = 720;
 const H = 200;
-const PADX = 60;
+const PADX = 40;
 const STAGE_Y = H / 2;
 
 function stagePos(i: number) {
